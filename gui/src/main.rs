@@ -1,5 +1,5 @@
 // Import iced modules.
-use iced::widget::{column, container, text};
+use iced::widget::{button, column, container, slider, text};
 use iced::{Alignment, Element, Length, Sandbox, Settings};
 // Import iced_audio modules.
 use iced_audio::{tick_marks, FloatRange, FreqRange, IntRange, LogDBRange, Normal, NormalParam};
@@ -8,6 +8,9 @@ use iced_audio::{HSlider, Knob, VSlider, XYPad};
 // The message when a parameter widget is moved by the user
 #[derive(Debug, Clone)]
 pub enum Message {
+    SliderChanged(f32),
+    ButtonClicked(u8),
+    //
     HSliderInt(Normal),
     VSliderDB(Normal),
     KnobFreq(Normal),
@@ -19,6 +22,9 @@ pub fn main() {
 }
 
 pub struct App {
+    slider_value: f32, //0 ..=1
+    button_id: u8,
+    /////
     // The ranges handle converting the input/output of a parameter to and from
     // a usable value.
     //
@@ -46,7 +52,7 @@ pub struct App {
 
     // A group of tick marks with their size and position.
     center_tick_mark: tick_marks::Group,
-
+    knob_marks: tick_marks::Group,
     output_text: String,
 }
 
@@ -61,6 +67,9 @@ impl Sandbox for App {
         let freq_range = FreqRange::default();
 
         App {
+            slider_value: 0.0,
+            button_id: 128,
+            //////////
             // Add the ranges.
             float_range,
             int_range,
@@ -77,8 +86,11 @@ impl Sandbox for App {
 
             // Add a tick mark at the center position with the tier 2 size
             center_tick_mark: tick_marks::Group::center(tick_marks::Tier::Two),
-
-            output_text: "Move a widget!".into(),
+            knob_marks: tick_marks::Group::min_max_and_center(
+                tick_marks::Tier::Two,
+                tick_marks::Tier::Three,
+            ),
+            output_text: "try anything".into(),
         }
     }
 
@@ -88,6 +100,13 @@ impl Sandbox for App {
 
     fn update(&mut self, event: Message) {
         match event {
+            Message::ButtonClicked(id) => {
+                self.output_text = format!("Button Clicked: {id}");
+            }
+            Message::SliderChanged(value) => {
+                self.slider_value = value;
+                self.output_text = format!("Slider Changed: {value}");
+            } //
             // Retrieve the value by mapping the normalized value of the parameter
             // to the corresponding range.
             //
@@ -131,20 +150,24 @@ impl Sandbox for App {
         let v_slider_widget = VSlider::new(self.v_slider_param, Message::VSliderDB)
             .tick_marks(&self.center_tick_mark);
 
-        let knob_widget = Knob::new(self.knob_param, Message::KnobFreq);
+        let knob_widget = Knob::new(self.knob_param, Message::KnobFreq) //
+            .tick_marks(&self.knob_marks);
 
         let xy_pad_widget = XYPad::new(
             self.xy_pad_x_param,
             self.xy_pad_y_param,
             Message::XYPadFloat,
         );
-
         // Push the widgets into the iced DOM
         let content = column![
+            slider(0.0..=1.0, self.slider_value, |f| Message::SliderChanged(f)).step(0.025),
+            button(text("Click here")).on_press(Message::ButtonClicked(self.button_id)),
+            //////////////
             h_slider_widget,
             v_slider_widget,
             knob_widget,
             xy_pad_widget,
+            //////////////
             container(text(&self.output_text)).width(Length::Fill),
         ]
         .max_width(300)
